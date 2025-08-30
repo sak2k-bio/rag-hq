@@ -32,7 +32,7 @@ interface SimpleChatProps {
 }
 
 export function SimpleChat({ excludedSources = [] }: SimpleChatProps) {
-    const [messages, setMessages] = useState<Array<{ id: string; role: 'user' | 'assistant'; content: string; sources?: Source[] }>>([]);
+    const [messages, setMessages] = useState<Array<{ id: string; role: 'user' | 'assistant'; content: string; sources?: Source[]; timestamp?: string }>>([]);
     const [input, setInput] = useState('');
     const [isLoading, setIsLoading] = useState(false);
     const [sessionId, setSessionId] = useState<string>('');
@@ -42,6 +42,10 @@ export function SimpleChat({ excludedSources = [] }: SimpleChatProps) {
     const [manualTopK, setManualTopK] = useState<number>(5);
     const [queryAnalysis, setQueryAnalysis] = useState<QueryAnalysis | null>(null);
     const [isAnalyzing, setIsAnalyzing] = useState<boolean>(false);
+
+    // Chat sessions list state
+    const [chatSessions, setChatSessions] = useState<Array<{ id: string; messageCount: number; lastMessage: string; timestamp: string }>>([]);
+    const [showSessionList, setShowSessionList] = useState(false);
 
     // Initialize session and load previous messages
     useEffect(() => {
@@ -58,7 +62,7 @@ export function SimpleChat({ excludedSources = [] }: SimpleChatProps) {
             }
             setSessionId(sessionId);
 
-            // Load previous messages from Supabase
+            // Load previous messages from Supabase with proper error handling
             const { data: previousMessages, error } = await supabase
                 .from('chat_messages')
                 .select('*')
@@ -66,18 +70,111 @@ export function SimpleChat({ excludedSources = [] }: SimpleChatProps) {
                 .order('timestamp', { ascending: true });
 
             if (error) {
-                console.error('Error loading messages:', error);
-            } else if (previousMessages) {
-                setMessages(previousMessages.map(msg => ({
+                console.error('Error loading messages from Supabase:', error);
+                // Continue with empty messages if there's an error
+                setMessages([]);
+            } else if (previousMessages && previousMessages.length > 0) {
+                console.log(`Loaded ${previousMessages.length} messages from Supabase for session: ${sessionId}`);
+                
+                // Map messages with proper structure including sources
+                const mappedMessages = previousMessages.map(msg => ({
                     id: msg.id,
-                    role: msg.role,
-                    content: msg.content
-                })));
+                    role: msg.role as 'user' | 'assistant',
+                    content: msg.content,
+                    sources: msg.sources || [], // Include sources if available
+                    timestamp: msg.timestamp
+                }));
+                
+                setMessages(mappedMessages);
+            } else {
+                console.log('No previous messages found for session:', sessionId);
+                setMessages([]);
             }
         } catch (error) {
             console.error('Error initializing chat:', error);
+            setMessages([]);
         }
     };
+
+    // Load available chat sessions
+    const loadChatSessions = async () => {
+        try {
+            const { data: sessions, error } = await supabase
+                .from('chat_messages')
+                .select('session_id, content, timestamp')
+                .order('timestamp', { ascending: false });
+
+            if (error) {
+                console.error('Error loading chat sessions:', error);
+                return;
+            }
+
+            // Group messages by session and get session info
+            const sessionMap = new Map();
+            sessions?.forEach(msg => {
+                if (!sessionMap.has(msg.session_id)) {
+                    sessionMap.set(msg.session_id, {
+                        id: msg.session_id,
+                        messageCount: 0,
+                        lastMessage: '',
+                        timestamp: msg.timestamp
+                    });
+                }
+                const session = sessionMap.get(msg.session_id);
+                session.messageCount++;
+                if (!session.lastMessage) {
+                    session.lastMessage = msg.content.substring(0, 50) + (msg.content.length > 50 ? '...' : '');
+                }
+            });
+
+            const sessionList = Array.from(sessionMap.values());
+            setChatSessions(sessionList);
+        } catch (error) {
+            console.error('Error loading chat sessions:', error);
+        }
+    };
+
+    // Switch to a different chat session
+    const switchToSession = async (newSessionId: string) => {
+        try {
+            setSessionId(newSessionId);
+            localStorage.setItem('chat_session_id', newSessionId);
+            
+            // Load messages for the new session
+            const { data: sessionMessages, error } = await supabase
+                .from('chat_messages')
+                .select('*')
+                .eq('session_id', newSessionId)
+                .order('timestamp', { ascending: true });
+
+            if (error) {
+                console.error('Error loading session messages:', error);
+                setMessages([]);
+            } else if (sessionMessages && sessionMessages.length > 0) {
+                const mappedMessages = sessionMessages.map(msg => ({
+                    id: msg.id,
+                    role: msg.role as 'user' | 'assistant',
+                    content: msg.content,
+                    sources: msg.sources || [],
+                    timestamp: msg.timestamp
+                }));
+                setMessages(mappedMessages);
+                console.log(`Switched to session ${newSessionId} with ${mappedMessages.length} messages`);
+            } else {
+                setMessages([]);
+                console.log(`Switched to empty session ${newSessionId}`);
+            }
+            
+            setShowSessionList(false);
+        } catch (error) {
+            console.error('Error switching sessions:', error);
+        }
+    };
+
+    // Load sessions when component mounts
+    useEffect(() => {
+        loadChatSessions();
+    }, []);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -115,6 +212,9 @@ export function SimpleChat({ excludedSources = [] }: SimpleChatProps) {
             await saveMessageToSupabase(assistantMessage);
 
             setMessages(prev => [assistantMessage, ...prev]);
+            
+            // Refresh the session list to show updated counts
+            await loadChatSessions();
         } catch (error) {
             console.error('Chat error:', error);
         } finally {
@@ -162,14 +262,17 @@ export function SimpleChat({ excludedSources = [] }: SimpleChatProps) {
                     role: message.role,
                     content: message.content,
                     session_id: sessionId,
+                    sources: message.sources || [], // Save sources as JSON
                     timestamp: new Date().toISOString()
                 });
 
             if (error) {
-                console.error('Error saving message:', error);
+                console.error('Error saving message to Supabase:', error);
+            } else {
+                console.log(`Message saved to Supabase: ${message.role} - ${message.content.substring(0, 50)}...`);
             }
         } catch (error) {
-            console.error('Error saving message:', error);
+            console.error('Error saving message to Supabase:', error);
         }
     };
 
@@ -190,6 +293,9 @@ export function SimpleChat({ excludedSources = [] }: SimpleChatProps) {
                 const newSessionId = `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
                 setSessionId(newSessionId);
                 localStorage.setItem('chat_session_id', newSessionId);
+                
+                // Refresh the session list
+                await loadChatSessions();
             }
         } catch (error) {
             console.error('Error clearing session:', error);
@@ -208,21 +314,72 @@ export function SimpleChat({ excludedSources = [] }: SimpleChatProps) {
 
     return (
         <div className="flex flex-col h-full">
-            {/* Chat Header with Clear Session Button */}
+            {/* Chat Header with Session Management */}
             <div className="flex items-center justify-between p-4 border-b border-white/10">
                 <div className="flex items-center gap-4">
                     <h3 className="text-lg font-semibold text-white">Chat History</h3>
                     <div className="text-sm text-white/60">
                         Top-K: {topKMode === 'auto' ? 'Auto' : `Manual (${manualTopK})`}
                     </div>
+                    <div className="text-sm text-white/60">
+                        Session: {sessionId.substring(0, 8)}...
+                    </div>
                 </div>
-                <button
-                    onClick={clearChatSession}
-                    className="px-3 py-1 text-sm bg-red-500/20 hover:bg-red-500/30 text-red-300 border border-red-500/30 rounded-md transition-colors"
-                >
-                    Clear Session
-                </button>
+                <div className="flex items-center gap-2">
+                    <button
+                        onClick={() => setShowSessionList(!showSessionList)}
+                        className="px-3 py-1 text-sm bg-blue-500/20 hover:bg-blue-500/30 text-blue-300 border border-blue-500/30 rounded-md transition-colors"
+                    >
+                        {showSessionList ? 'Hide Sessions' : 'Show Sessions'}
+                    </button>
+                    <button
+                        onClick={clearChatSession}
+                        className="px-3 py-1 text-sm bg-red-500/20 hover:bg-red-500/30 text-red-300 border border-red-500/30 rounded-md transition-colors"
+                    >
+                        Clear Session
+                    </button>
+                </div>
             </div>
+
+            {/* Session List Dropdown */}
+            {showSessionList && (
+                <div className="p-4 border-b border-white/20 bg-white/5 backdrop-blur-sm">
+                    <h4 className="text-sm font-medium text-white/80 mb-3">Previous Chat Sessions</h4>
+                    <div className="max-h-40 overflow-y-auto space-y-2">
+                        {chatSessions.length > 0 ? (
+                            chatSessions.map((session) => (
+                                <div
+                                    key={session.id}
+                                    onClick={() => switchToSession(session.id)}
+                                    className={`p-3 rounded-lg border cursor-pointer transition-colors ${
+                                        session.id === sessionId
+                                            ? 'bg-blue-500/20 border-blue-500/40 text-blue-200'
+                                            : 'bg-white/5 border-white/20 text-white/80 hover:bg-white/10 hover:text-white'
+                                    }`}
+                                >
+                                    <div className="flex items-center justify-between">
+                                        <div className="flex-1 min-w-0">
+                                            <div className="text-sm font-medium truncate">
+                                                Session {session.id.substring(0, 8)}...
+                                            </div>
+                                            <div className="text-xs text-white/60 truncate">
+                                                {session.lastMessage}
+                                            </div>
+                                        </div>
+                                        <div className="text-xs text-white/50 ml-2">
+                                            {session.messageCount} messages
+                                        </div>
+                                    </div>
+                                </div>
+                            ))
+                        ) : (
+                            <div className="text-sm text-white/60 text-center py-4">
+                                No previous sessions found
+                            </div>
+                        )}
+                    </div>
+                </div>
+            )}
 
             {/* Input Area - Moved to top */}
             <div className="p-4 border-b border-white/20 bg-white/10 backdrop-blur-sm shadow-sm">

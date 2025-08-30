@@ -723,7 +723,21 @@ class RAGService {
       // Get collection info
       let collectionInfo;
       try {
+        logger.info(`About to call this.vectorStore.client.getCollection('${this.collectionName}')`);
         collectionInfo = await this.vectorStore.client.getCollection(this.collectionName);
+        logger.info(`Raw collection info received: ${JSON.stringify(collectionInfo, null, 2)}`);
+        logger.info(`Collection info keys: ${Object.keys(collectionInfo).join(', ')}`);
+        
+        // Check specific fields that might contain vector count
+        if (collectionInfo.points_count !== undefined) {
+          logger.info(`points_count field: ${collectionInfo.points_count}`);
+        }
+        if (collectionInfo.indexed_vectors_count !== undefined) {
+          logger.info(`indexed_vectors_count field: ${collectionInfo.indexed_vectors_count}`);
+        }
+        if (collectionInfo.vectors_count !== undefined) {
+          logger.info(`vectors_count field: ${collectionInfo.vectors_count}`);
+        }
       } catch (error) {
         logger.warn(`Could not get collection info: ${error.message}`);
         return {
@@ -732,7 +746,7 @@ class RAGService {
         };
       }
 
-      const totalVectors = collectionInfo.vectors_count || 0;
+      const totalVectors = collectionInfo.points_count || collectionInfo.indexed_vectors_count || 0;
       
       if (totalVectors === 0) {
         return {

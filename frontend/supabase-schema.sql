@@ -4,6 +4,7 @@ CREATE TABLE IF NOT EXISTS chat_messages (
     role TEXT NOT NULL CHECK (role IN ('user', 'assistant')),
     content TEXT NOT NULL,
     session_id TEXT NOT NULL,
+    sources JSONB DEFAULT '[]', -- Store sources as JSON array
     timestamp TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
