@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RAG Connection Test</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 40px; }
+        .test-section { margin: 20px 0; padding: 20px; border: 1px solid #ccc; border-radius: 5px; }
+        .success { background-color: #d4edda; border-color: #c3e6cb; color: #155724; }
+        .error { background-color: #f8d7da; border-color: #f5c6cb; color: #721c24; }
+        button { padding: 10px 20px; margin: 5px; cursor: pointer; }
+        .result { margin-top: 10px; padding: 10px; background-color: #f8f9fa; border-radius: 3px; }
+    </style>
+</head>
+<body>
+    <h1>🚀 RAG System Connection Test</h1>
+    
+    <div class="test-section">
+        <h3>1. Backend Health Check</h3>
+        <button onclick="testBackendHealth()">Test Backend Health</button>
+        <div id="backendHealth" class="result"></div>
+    </div>
+    
+    <div class="test-section">
+        <h3>2. Query Analysis Test</h3>
+        <button onclick="testQueryAnalysis()">Test Query Analysis</button>
+        <div id="queryAnalysis" class="result"></div>
+    </div>
+    
+    <div class="test-section">
+        <h3>3. Chat Query Test</h3>
+        <button onclick="testChatQuery()">Test Chat Query</button>
+        <div id="chatQuery" class="result"></div>
+    </div>
+
+    <script>
+        async function testBackendHealth() {
+            const resultDiv = document.getElementById('backendHealth');
+            resultDiv.innerHTML = 'Testing...';
+            
+            try {
+                const response = await fetch('http://localhost:3000/api/health');
+                const data = await response.json();
+                
+                if (response.ok) {
+                    resultDiv.innerHTML = `<div class="success">✅ Backend is healthy!<br>Status: ${data.status}<br>Timestamp: ${data.timestamp}</div>`;
+                } else {
+                    resultDiv.innerHTML = `<div class="error">❌ Backend health check failed: ${response.status}</div>`;
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `<div class="error">❌ Connection error: ${error.message}</div>`;
+            }
+        }
+        
+        async function testQueryAnalysis() {
+            const resultDiv = document.getElementById('queryAnalysis');
+            resultDiv.innerHTML = 'Testing...';
+            
+            try {
+                const response = await fetch('http://localhost:3000/api/query/analyze', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ question: 'How does machine learning work?' })
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok && data.success) {
+                    resultDiv.innerHTML = `<div class="success">✅ Query Analysis Working!<br>
+                        Query: ${data.query}<br>
+                        Complexity: ${data.analysis.complexity}<br>
+                        Recommended Top-K: ${data.analysis.recommendedTopK}<br>
+                        Reasoning: ${data.analysis.reasoning}</div>`;
+                } else {
+                    resultDiv.innerHTML = `<div class="error">❌ Query Analysis failed: ${JSON.stringify(data)}</div>`;
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `<div class="error">❌ Connection error: ${error.message}</div>`;
+            }
+        }
+        
+        async function testChatQuery() {
+            const resultDiv = document.getElementById('chatQuery');
+            resultDiv.innerHTML = 'Testing...';
+            
+            try {
+                const response = await fetch('http://localhost:3000/api/query', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ 
+                        question: 'What is Python?',
+                        topK: 3
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok && data.answer) {
+                    resultDiv.innerHTML = `<div class="success">✅ Chat Query Working!<br>
+                        Response: ${data.answer.substring(0, 100)}...<br>
+                        Sources: ${data.sources ? data.sources.length : 0} found</div>`;
+                } else {
+                    resultDiv.innerHTML = `<div class="error">❌ Chat Query failed: ${JSON.stringify(data)}</div>`;
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `<div class="error">❌ Connection error: ${error.message}</div>`;
+            }
+        }
+    </script>
+</body>
+</html>

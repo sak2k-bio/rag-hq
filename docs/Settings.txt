@@ -1,0 +1,39 @@
+# Settings
+
+## Environment Variables (Backend)
+- `GOOGLE_API_KEY` (required): Google Generative AI API key
+- `QDRANT_URL` (required): Qdrant REST URL
+  - Docker default: `http://qdrant:6333`
+- `QDRANT_COLLECTION` (optional): Qdrant collection name
+  - Default: `documents`
+  - Recommended per-env: `documents_dev`, `documents_test`, `documents_prod`
+- `PORT` (optional): Backend port (default `3000`)
+- `NODE_ENV` (optional): `development` | `test` | `production`
+
+## Versions (key packages)
+- Node: 18-alpine (container)
+- LangChain: `langchain@^0.3.31`, `@langchain/core@^0.3.31`, `@langchain/community@^0.3.31`
+- Google GenAI: `@langchain/google-genai@^0.0.18`
+- Qdrant client: `@qdrant/js-client-rest@^1.7.0`
+
+## Vector Store
+- Qdrant over REST; ensure the container `qdrant` is reachable from backend
+- Use separate collections per environment to avoid data mixing
+
+## RAG Behavior
+- Web: `CheerioWebBaseLoader` (`@langchain/community/document_loaders/web/cheerio`)
+- PDF: `PDFLoader`
+- DOCX: `DocxLoader`
+- TXT: Document constructed from Blob text (no TextLoader import)
+- Splitter: `RecursiveCharacterTextSplitter` (chunkSize=1000, overlap=200)
+- Embeddings: Google `embedding-001`
+- Chat model: `gemini-1.5-flash`
+
+## Recommended Env Separation
+- dev: local testing; small collections; verbose logging
+- test: CI; isolated `QDRANT_COLLECTION` and `QDRANT_URL` if needed
+- prod: dedicated Qdrant instance; production collection; stricter logging
+
+## Security
+- Do not commit `.env` files
+- Rotate `GOOGLE_API_KEY` if leaked; prefer secret storage in CI/CD 

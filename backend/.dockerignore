@@ -1,0 +1,14 @@
+node_modules
+npm-debug.log
+.git
+.gitignore
+Dockerfile
+.dockerignore
+
+# Tests and local artifacts
+coverage
+**/*.log
+
+# Not needed in image
+README.md
+**/*.md 

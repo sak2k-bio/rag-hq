@@ -1,0 +1,21 @@
+node_modules
+npm-debug.log
+Dockerfile
+.dockerignore
+.git
+.gitignore
+.qdrant_storage
+
+# Frontend
+frontend/node_modules
+frontend/.next
+frontend/.turbo
+frontend/.vercel
+
+# Backend
+backend/node_modules
+backend/dist
+
+# Misc
+**/*.log
+**/.DS_Store 

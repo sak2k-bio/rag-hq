@@ -1,0 +1,54 @@
+# Steps to Run
+
+## Prerequisites
+- Docker and Docker Compose installed
+- Valid `GOOGLE_API_KEY` in `backend/.env`
+
+## Start Services
+1. Build images:
+   - PowerShell:
+     docker compose build backend
+     docker compose build frontend
+2. Start services:
+   - PowerShell:
+     docker compose up -d qdrant
+     docker compose up -d backend
+     docker compose up -d frontend
+
+## Validate Backend
+- Health check (PowerShell):
+  powershell -Command Invoke-WebRequest -Uri http://localhost:3000/api/health -UseBasicParsing
+
+Expected: HTTP 200 with `{ "status": "ok" }`.
+
+## Common Operations
+- Rebuild backend after code changes:
+  docker compose build backend
+  docker compose up -d backend
+
+- View backend logs:
+  docker compose logs --tail 200 backend
+
+- Qdrant is exposed on 6333/6334; backend listens on 3000; frontend on 3001
+
+## Notes for Windows PowerShell
+- `&&` is not a valid separator; run commands sequentially
+- Use `Invoke-WebRequest` instead of `curl -sS`
+
+## Environment Setup
+- `backend/.env` must define:
+  - `GOOGLE_API_KEY`
+  - `QDRANT_URL` (Docker default: `http://qdrant:6333`)
+  - `QDRANT_COLLECTION` (e.g., `documents`)
+  - `PORT` (default `3000`)
+
+## Ingestion Behaviors
+- Website crawl uses fetch + cheerio with desktop User-Agent and 10s timeout; content is converted via html-to-text and chunked.
+- Supported file types for upload:
+  - PDF (`application/pdf`) via pdf-parse
+  - DOCX (`application/vnd.openxmlformats-officedocument.wordprocessingml.document`) via mammoth
+  - TXT (`text/plain`) via UTF-8 decode
+
+## Next Steps (Ops)
+- Add `.env.dev`, `.env.test`, `.env.prod` and set `QDRANT_URL`/`QDRANT_COLLECTION` per environment
+- Add CI workflow to build and run tests on PRs 

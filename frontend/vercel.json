@@ -1,0 +1,18 @@
+{
+    "buildCommand": "npm run build",
+    "outputDirectory": ".next",
+    "framework": "nextjs",
+    "installCommand": "npm install",
+    "devCommand": "npm run dev",
+    "regions": [
+        "iad1"
+    ],
+    "functions": {
+        "app/api/chat/route.ts": {
+            "maxDuration": 30
+        }
+    },
+    "env": {
+        "NEXT_PUBLIC_BACKEND_URL": "rag-personallm-plus-production.up.railway.app"
+    }
+}

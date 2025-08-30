@@ -1,0 +1,136 @@
+# Project Description
+
+This project implements a Retrieval-Augmented Generation (RAG) service using LangChain, Qdrant, and Google Gemini, with advanced bulk PDF processing capabilities and full Qdrant Cloud support.
+
+## Architecture
+- Backend (Node.js, Express):
+  - Loads content from web pages, PDFs, DOCX, and plain text
+  - Splits documents into chunks and stores embeddings in Qdrant
+  - Answers user queries by retrieving relevant chunks and generating responses with Gemini
+  - **NEW**: Bulk PDF processing with resume capability and real-time progress tracking
+  - **NEW**: Full Qdrant Cloud integration for scalable production deployment
+- Vector Store: Qdrant (Local, Self-hosted, or Cloud)
+- LLM/Embeddings: Google Generative AI (Gemini)
+- Frontend: Next.js (served separately)
+
+## Key Backend Components
+- `backend/src/index.js`: Express app setup, routes, and initialization
+- `backend/src/services/ragService.js`: Core RAG logic
+  - Loaders:
+    - Web: `CheerioWebBaseLoader` from `@langchain/community/document_loaders/web/cheerio`
+    - PDF: `PDFLoader` from `@langchain/community/document_loaders/fs/pdf`
+    - DOCX: `DocxLoader` from `@langchain/community/document_loaders/fs/docx`
+    - TXT: Directly constructs `Document` from Blob text (no TextLoader import)
+  - Splitting: `RecursiveCharacterTextSplitter`
+  - Embeddings: `GoogleGenerativeAIEmbeddings` (model `embedding-001`)
+  - Vector store: `QdrantVectorStore` (constructed as `(embeddings, { url, collectionName })`)
+  - Chat model: `ChatGoogleGenerativeAI` (model `gemini-1.5-flash`)
+- **NEW**: `backend/src/services/bulkPdfService.js`: Bulk PDF processing service
+  - Processes 500+ PDFs with configurable concurrency
+  - Resume capability using SQLite manifest
+  - Real-time progress tracking via SSE
+  - Duplicate prevention using file checksums
+  - Error handling and retry logic
+  - **Cloud-Ready**: Works with local, self-hosted, or Qdrant Cloud instances
+- **NEW**: `backend/bulk-pdf-ingest.js`: Standalone bulk PDF ingestion script
+  - Independent command-line tool for bulk processing
+  - Same capabilities as backend service
+  - Rich console logging and progress tracking
+  - **Cloud-Ready**: Direct Qdrant Cloud integration
+
+## API Endpoints (Backend)
+- `GET /api/health`: Health check
+- `POST /api/documents` (multipart/form-data, field `document`): Ingest file (PDF/DOCX/TXT)
+- `POST /api/crawl` (JSON: `{ url }`): Ingest a webpage
+- `POST /api/text` (JSON: `{ text }`): Ingest raw text
+- `POST /api/query` (JSON: `{ question }`): Query RAG chain
+- `GET /api/documents`: List all documents in collection
+- `DELETE /api/documents/:source`: Delete document by source
+- **NEW**: `POST /api/bulk-pdf/process` (JSON: `{ pdfDirectory }`): Start bulk PDF processing
+- **NEW**: `POST /api/bulk-pdf/resume`: Resume interrupted bulk processing
+- **NEW**: `GET /api/bulk-pdf/stats`: Get bulk processing statistics
+- **NEW**: `DELETE /api/bulk-pdf/manifest`: Clear bulk processing manifest
+
+## Environment Variables
+- `GOOGLE_API_KEY`: Required for embeddings and chat
+- `QDRANT_URL`: Qdrant REST URL (local: `http://localhost:6333`, cloud: `https://cluster.cloud.qdrant.io:6333`)
+- `QDRANT_API_KEY`: API key for Qdrant Cloud (empty for local instances)
+- `QDRANT_COLLECTION`: Collection name (default `documents`)
+- `PORT`: Backend port (default `3000`)
+- `NODE_ENV`: Environment (`development`, `test`, `production`)
+- **NEW**: `BULK_CONCURRENCY`: Number of PDFs to process simultaneously (default `6`)
+- **NEW**: `BULK_EMBED_BATCH`: Text chunks per embedding API call (default `128`)
+- **NEW**: `BULK_UPSERT_BATCH`: Vectors per Qdrant upsert (default `256`)
+- **NEW**: `BULK_CHUNK_SIZE`: Character size for text chunks (default `500`)
+- **NEW**: `BULK_CHUNK_OVERLAP`: Character overlap between chunks (default `200`)
+
+## Recent Changes
+- Removed unsupported import: `@langchain/community/document_loaders/fs/text`; handle TXT via Blob -> `Document` instead
+- Updated Cheerio loader import to `@langchain/community/document_loaders/web/cheerio`
+- Fixed `QdrantVectorStore` constructor signature to `(embeddings, { url, collectionName })`
+- Verified backend starts and health endpoint returns 200
+- **NEW**: Added comprehensive bulk PDF processing system
+- **NEW**: Integrated bulk PDF service with existing RAG infrastructure
+- **NEW**: Added standalone bulk PDF ingestion script
+- **NEW**: Implemented resume capability and progress tracking
+- **NEW**: Added full Qdrant Cloud integration support
+- **NEW**: Created comprehensive cloud deployment documentation
+- **FIXED**: Resolved Docker SQLite database permission issues for bulk PDF manifest storage
+
+## Files of Interest
+- `docker-compose.yml`: Defines services for Qdrant, backend, frontend
+- `backend/Dockerfile`: Node 18-alpine image build for backend
+- `backend/.env`: Backend environment file (do not commit sensitive values)
+- **NEW**: `backend/src/services/bulkPdfService.js`: Bulk PDF processing service
+- **NEW**: `backend/bulk-pdf-ingest.js`: Standalone bulk PDF script
+- **NEW**: `backend/BULK_PDF_README.md`: Comprehensive bulk PDF documentation
+- **NEW**: `backend/QDRANT_CLOUD_INTEGRATION.md`: Complete Qdrant Cloud integration guide
+- **NEW**: `backend/QDRANT_CLOUD_QUICK_REFERENCE.md`: Quick reference for cloud operations
+- **NEW**: `backend/QUICK_START_BULK_PDF.md`: 5-minute setup guide
+
+## Bulk PDF Processing Features
+- **Scalability**: Process 500+ PDFs efficiently with configurable concurrency
+- **Resume Capability**: Automatic resume from crashes using SQLite manifest
+- **Progress Tracking**: Real-time updates via SSE endpoints
+- **Duplicate Prevention**: SHA256 checksums prevent reprocessing
+- **Error Handling**: Robust retry logic and error reporting
+- **Memory Efficiency**: Streaming and batch processing
+- **Integration**: Seamlessly works with existing RAG query system
+- **Cloud-Ready**: Works with local Qdrant or Qdrant Cloud instances
+
+## Qdrant Cloud Integration Features
+- **Multi-Environment Support**: Development, staging, and production configurations
+- **Cloud Provider Support**: AWS, GCP, Azure, and custom domains
+- **Security**: HTTPS/TLS, API key management, environment isolation
+- **Performance Optimization**: Cloud-specific tuning for latency and rate limits
+- **Cost Optimization**: Batch processing strategies to minimize API calls
+- **Monitoring**: Real-time progress tracking and error monitoring
+- **Scalability**: Unlimited storage and enterprise-grade reliability
+
+## Deployment Options
+
+### **Local Development**
+- Qdrant running locally via Docker
+- No API key required
+- Best for development and testing
+
+### **Self-Hosted Production**
+- Qdrant on your own infrastructure
+- API key optional (if enabled)
+- Full control over data and performance
+
+### **Qdrant Cloud Production**
+- Managed Qdrant service
+- API key required for authentication
+- Enterprise-grade scalability and reliability
+- Automatic backups and monitoring
+
+## Future Work
+- Add tests for ingestion and query flows
+- Establish environment-specific configurations and CI
+- Expand observability (metrics/tracing) when needed
+- **NEW**: Add tests for bulk PDF processing flows
+- **NEW**: Implement bulk processing frontend interface
+- **NEW**: Add bulk processing monitoring and alerting
+- **NEW**: Implement cloud-specific performance monitoring
+- **NEW**: Add cloud deployment automation and CI/CD 

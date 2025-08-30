@@ -1,0 +1,36 @@
+1.frontend : page.tsx --> const API_URL = 'http://localhost:3000/api' ;
+to 
+const API_URL = 'https://rag-personallm-plus-production.up.railway.app/api';
+
+---
+
+2.Backend : ragServices : // Reconnect to local Qdrant
+      this.vectorStore = new QdrantVectorStore(this.embeddings, {
+        url: process.env.QDRANT_URL,
+        collectionName: process.env.QDRANT_COLLECTION || 'documents',
+      });
+this.collectionName = process.env.QDRANT_COLLECTION || 'documents';
+
+to
+
+ this.vectorStore = new QdrantVectorStore(this.embeddings, {
+        url: process.env.QDRANT_URL,
+        collectionName: process.env.QDRANT_COLLECTION || 'hitesh_courses',
+
+this.collectionName = process.env.QDRANT_COLLECTION || 'hitesh_courses';
+
+
+---
+
+3.Frontend : page.tsx : <div>
+                  <label className="text-xs text-white/80 block mb-1">Collection Name</label>
+                  <input
+                    type="text"
+                    placeholder="documents"
+
+to 
+              <div>
+                  <label className="text-xs text-white/80 block mb-1">Collection Name</label>
+                  <input
+                    type="text"
+                    placeholder="hitesh_courses"

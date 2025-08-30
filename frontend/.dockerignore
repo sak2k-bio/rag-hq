@@ -1,0 +1,14 @@
+node_modules
+npm-debug.log
+.git
+.gitignore
+Dockerfile
+.dockerignore
+
+# Next.js build artifacts
+.next
+.out
+.turbo
+.vercel
+**/*.log
+**/.DS_Store 

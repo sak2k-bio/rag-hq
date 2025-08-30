@@ -1,0 +1,122 @@
+# TODO
+
+- [DONE] Resolve LangChain import error for TextLoader by removing unsupported import and handling text/plain via Blob to Document.
+- [DONE] Fix Cheerio loader import to '@langchain/community/document_loaders/web/cheerio'.
+- [DONE] Correct QdrantVectorStore constructor signature to (embeddings, { url, collectionName }).
+- [DONE] Verify backend starts successfully and health endpoint returns 200.
+
+- [DONE] Switch file ingestion to direct parsers:
+  - pdf-parse for PDF buffers
+  - mammoth.extractRawText for DOCX buffers
+  - UTF-8 decode for TXT buffers
+
+- [DONE] Switch website crawling to fetch + cheerio + html-to-text with desktop User-Agent
+
+- [DONE] Add recursive website crawling:
+  - Backend: WebsiteCrawler class with recursive link discovery
+  - Backend: robots.txt checking, rate limiting, and domain filtering
+  - Backend: Configurable max pages (50) and delay between requests
+  - Backend: Enhanced progress reporting for multi-page crawls
+  - Frontend: Updated progress messages for recursive crawling
+
+- [DONE] Add SSE-based progress updates and sources sidebar:
+  - Backend: GET /api/progress/:opId endpoint with EventSource
+  - Backend: emitProgress/emitDone in file/crawl/text processing
+  - Frontend: opId generation, EventSource connection, friendly progress lines
+  - Frontend: Sources panel showing URLs/filenames after ingestion
+
+- [DONE] Add document listing and database overview:
+  - Backend: GET /api/documents endpoint to list all documents in collection
+  - Backend: listDocuments() method to retrieve unique sources with chunk counts
+  - Frontend: Sources panel shows all documents with refresh button
+  - Frontend: Auto-refresh after new ingestion completes
+
+- [DONE] Add document deletion functionality:
+  - Backend: DELETE /api/documents/:source endpoint to remove documents by source
+  - Backend: deleteDocument() method to remove chunks from vector store
+  - Frontend: Delete buttons (✗) next to each document in Sources panel
+  - Frontend: Auto-refresh after deletion completes
+
+- [DONE] Implement proper pagination for large collections:
+  - Backend: Updated listDocuments() method with Qdrant scroll pagination
+  - Backend: Updated deleteDocument() method with same pagination approach
+  - Backend: Added /api/collection/stats endpoint for collection statistics
+  - Backend: Added getCollectionStats() method with vector count and source estimation
+  - Frontend: Added collection statistics display showing total vectors and sources
+  - Frontend: Updated sources count to show actual total vs loaded count
+  - Frontend: Added collection stats refresh functionality
+  - Testing: Created test-pagination.js script to verify pagination works correctly
+
+- [DONE] Add comprehensive bulk PDF processing system:
+  - Backend: BulkPdfService integrated with existing RAG infrastructure
+  - Backend: REST API endpoints for bulk operations (/api/bulk-pdf/*)
+  - Backend: SQLite manifest database for progress tracking and resume capability
+  - Backend: Configurable concurrency, batch sizes, and chunk parameters
+  - Backend: Real-time SSE progress updates for bulk operations
+  - Standalone: Independent bulk-pdf-ingest.js script for command-line use
+  - Documentation: Comprehensive BULK_PDF_README.md with usage examples
+
+- [TODO] Add tests for ingestion flows:
+  - [ ] Web URL ingestion (`processWebUrl`)
+  - [ ] PDF upload (`processFile` - application/pdf)
+  - [ ] DOCX upload (`processFile` - application/vnd.openxmlformats-officedocument.wordprocessingml.document)
+  - [ ] TXT upload (`processFile` - text/plain)
+  - [ ] Raw text ingestion (`processText`)
+  - [ ] Query flow (`query`) with mocked vector store
+  - [ ] **NEW**: Bulk PDF processing flows (`processDirectory`, `resumeProcessing`)
+
+- [DONE] Fix Docker SQLite database permission issues:
+  - [x] Add persistent volume for backend data directory
+  - [x] Update Dockerfile to create data directory with proper permissions
+  - [x] Modify BulkPdfService to use data directory for SQLite database
+  - [x] Add DATA_DIR environment variable to docker-compose.yml
+
+- [DONE] Fix bulk PDF processing "Bad Request" errors:
+  - [x] Identify missing Google API key as root cause
+  - [x] Create env.example file with required environment variables
+  - [x] Document Google API key setup process
+  - [x] Update bulk PDF service to use proper RAG pipeline
+
+- [DONE] Implement Dynamic Top-K Selection:
+  - [x] Add getOptimalTopK() method with query complexity analysis
+  - [x] Add analyzeQuery() method for query analysis
+  - [x] Modify query() method to accept optional user Top-K parameter
+  - [x] Update API endpoint to accept topK parameter
+  - [x] Add /api/query/analyze endpoint for query analysis
+  - [x] Create test script for Dynamic Top-K functionality
+  - [x] Add frontend Top-K selection UI with Auto/Manual toggle
+  - [x] Add query analysis functionality in frontend
+  - [x] Update chat API to pass Top-K parameter
+  - [x] Add visual indicators for current Top-K mode
+
+- [TODO] Environment separation:
+  - [ ] Establish .env.dev, .env.test, .env.prod
+  - [ ] Configure `QDRANT_URL` per environment
+  - [ ] Use distinct `QDRANT_COLLECTION` per env (e.g., documents_dev, documents_test, documents_prod)
+
+- [TODO] CI/Automation:
+  - [ ] Add workflow to build backend and run tests on push/PR
+  - [ ] Lint/type checks if applicable
+
+- [TODO] Observability:
+  - [ ] Add basic request logging and error metrics
+  - [ ] Optionally integrate tracing later (non-blocking)
+
+- [TODO] Frontend:
+  - [ ] Wire up ingestion and query endpoints where needed
+  - [ ] Resolve TypeScript declaration issues (next/react/axios types)
+  - [ ] **NEW**: Add bulk PDF processing interface
+  - [ ] **NEW**: Integrate bulk processing progress with existing SSE system
+
+- [TODO] Bulk PDF Enhancements:
+  - [ ] Add bulk processing frontend interface with directory selection
+  - [ ] Implement bulk processing monitoring dashboard
+  - [ ] Add bulk processing scheduling and automation
+  - [ ] Implement bulk processing performance analytics
+  - [ ] Add support for other document types (DOCX, TXT) in bulk mode
+
+- [NOTES]
+  - Keep code simple, avoid duplication, and do not introduce new tech without necessity.
+  - Never overwrite .env; use env-specific files or environment variables.
+  - **NEW**: Bulk PDF system is production-ready with resume capability and comprehensive error handling.
+  - **NEW**: Use standalone script for testing and development, backend integration for production use. 
