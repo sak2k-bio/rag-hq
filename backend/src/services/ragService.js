@@ -25,6 +25,12 @@ class RAGService {
     this.isUsingCloud = false;
     this.cloudConfig = null;
 
+    // Debug logging for environment variables
+    logger.info(`RAG Service initialized with:`);
+    logger.info(`  QDRANT_URL: ${process.env.QDRANT_URL || 'NOT SET'}`);
+    logger.info(`  QDRANT_COLLECTION: ${process.env.QDRANT_COLLECTION || 'NOT SET (using default: documents)'}`);
+    logger.info(`  Collection Name: ${this.collectionName}`);
+
     this.embeddings = new GoogleGenerativeAIEmbeddings({
       apiKey: process.env.GOOGLE_API_KEY,
       model: 'embedding-001',
