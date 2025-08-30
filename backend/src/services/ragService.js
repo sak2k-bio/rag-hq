@@ -36,6 +36,8 @@ class RAGService {
       model: 'embedding-001',
     });
 
+    logger.info(`Creating QdrantVectorStore with URL: ${process.env.QDRANT_URL} and collection: ${this.collectionName}`);
+    
     this.vectorStore = new QdrantVectorStore(this.embeddings, {
       url: process.env.QDRANT_URL,
       collectionName: this.collectionName,
@@ -558,14 +560,36 @@ class RAGService {
       // Get collection info to determine total size
       let collectionInfo;
       try {
+        logger.info(`About to call this.vectorStore.client.getCollection('${this.collectionName}')`);
+        logger.info(`VectorStore client type: ${this.vectorStore.client.constructor.name}`);
+        
         collectionInfo = await this.vectorStore.client.getCollection(this.collectionName);
+        logger.info(`Raw collection info received: ${JSON.stringify(collectionInfo, null, 2)}`);
+        logger.info(`Collection info keys: ${Object.keys(collectionInfo).join(', ')}`);
+        
+        // Check specific fields that might contain vector count
+        if (collectionInfo.vectors_count !== undefined) {
+          logger.info(`vectors_count field: ${collectionInfo.vectors_count}`);
+        }
+        if (collectionInfo.points_count !== undefined) {
+          logger.info(`points_count field: ${collectionInfo.points_count}`);
+        }
+        if (collectionInfo.indexed_vectors_count !== undefined) {
+          logger.info(`indexed_vectors_count field: ${collectionInfo.indexed_vectors_count}`);
+        }
+        
+        // Log the full structure to see what we're getting
+        logger.info(`Full collection info structure: ${JSON.stringify(collectionInfo, null, 2)}`);
       } catch (error) {
         logger.warn(`Could not get collection info: ${error.message}`);
-        collectionInfo = { vectors_count: 0 };
+        return {
+          success: false,
+          error: `Could not get collection info: ${error.message}`
+        };
       }
 
-      const totalVectors = collectionInfo.vectors_count || 0;
-      logger.info(`Collection ${this.collectionName} contains ${totalVectors} total vectors`);
+      const totalVectors = collectionInfo.points_count || collectionInfo.indexed_vectors_count || 0;
+      logger.info(`Collection ${this.collectionName} contains ${totalVectors} total vectors (points: ${collectionInfo.points_count}, indexed: ${collectionInfo.indexed_vectors_count})`);
 
       if (totalVectors === 0) {
         return {
