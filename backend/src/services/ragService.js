@@ -609,7 +609,7 @@ class RAGService {
   }
 
   // Query with conversation history for memory persistence
-  async queryWithHistory(query, conversationHistory, userTopK = null, excludedSources = [], userSimilarityThreshold = null) {
+  async queryWithHistory(query, conversationHistory, userTopK = null, excludedSources = [], userSimilarityThreshold = null, useSystemPrompt = true) {
     try {
       // Validate inputs
       if (typeof query !== 'string') {
@@ -678,10 +678,10 @@ class RAGService {
         ).join('\n');
 
       // Create a more sophisticated prompt that includes conversation history
+      const systemPromptSection = useSystemPrompt ? `${SYSTEM_PROMPT}\n\n` : '';
+      
       const historyPrompt = ChatPromptTemplate.fromTemplate(`
-${SYSTEM_PROMPT}
-
-**Conversation History:**
+${systemPromptSection}**Conversation History:**
 ${formattedHistory}
 
 **Retrieved Documents:**
@@ -695,6 +695,7 @@ ${formattedHistory}
 - Maintain continuity in the conversation
 - Answer the current question based on both the conversation history and retrieved documents
 - Use the retrieved documents as your primary source of information
+${useSystemPrompt ? '' : '\n- Provide direct, factual answers without any specific personality or style constraints'}
 
 **Response:**`);
       

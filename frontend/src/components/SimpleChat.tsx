@@ -54,6 +54,9 @@ export function SimpleChat({ excludedSources = [] }: SimpleChatProps) {
     // Conversation context for memory persistence
     const [conversationContext, setConversationContext] = useState<Array<{ role: 'user' | 'assistant'; content: string }>>([]);
 
+    // System prompt toggle state
+    const [useSystemPrompt, setUseSystemPrompt] = useState<boolean>(true);
+
     // Initialize session and load previous messages
     useEffect(() => {
         initializeChat();
@@ -222,6 +225,7 @@ export function SimpleChat({ excludedSources = [] }: SimpleChatProps) {
             
             console.log(`Sending conversation context to backend: ${fullConversationContext.length} messages`);
             console.log(`Sending similarityThreshold: ${similarityThreshold}`);
+            console.log(`Sending useSystemPrompt: ${useSystemPrompt}`);
             
             // Use the same backend URL logic as the analyze query
             const backendUrl = 'http://localhost:3000'; // Hardcoded for now
@@ -230,7 +234,8 @@ export function SimpleChat({ excludedSources = [] }: SimpleChatProps) {
                 messages: fullConversationContext,
                 excludedSources,
                 topK: topKValue,
-                similarityThreshold: similarityThreshold
+                similarityThreshold: similarityThreshold,
+                useSystemPrompt: useSystemPrompt
             };
             
             console.log('Request body:', requestBody);
@@ -372,6 +377,9 @@ export function SimpleChat({ excludedSources = [] }: SimpleChatProps) {
                     </div>
                     <div className="text-sm text-white/60">
                         Session: {sessionId.substring(0, 8)}... | Context: {conversationContext.length} messages
+                    </div>
+                    <div className="text-sm text-white/60">
+                        System Prompt: {useSystemPrompt ? 'On' : 'Off'}
                     </div>
                 </div>
                 <div className="flex items-center gap-2">
@@ -572,6 +580,37 @@ export function SimpleChat({ excludedSources = [] }: SimpleChatProps) {
                                 </div>
                             )}
                         </div>
+
+                        {/* System Prompt Toggle */}
+                        <div className="flex items-center gap-2">
+                            <span className="text-xs text-white/60">System Prompt:</span>
+                            <div className="flex bg-white/10 rounded-lg p-1 border border-white/20">
+                                <button
+                                    type="button"
+                                    onClick={() => setUseSystemPrompt(true)}
+                                    className={`px-3 py-1.5 rounded-md transition-all text-xs ${
+                                        useSystemPrompt 
+                                            ? 'bg-blue-500 text-white shadow-sm' 
+                                            : 'text-white/60 hover:text-white/80'
+                                    }`}
+                                    title="Use the configured system prompt for personality and style"
+                                >
+                                    On
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => setUseSystemPrompt(false)}
+                                    className={`px-3 py-1.5 rounded-md transition-all text-xs ${
+                                        !useSystemPrompt 
+                                            ? 'bg-blue-500 text-white shadow-sm' 
+                                            : 'text-white/60 hover:text-white/80'
+                                    }`}
+                                    title="Provide direct, factual answers without specific personality or style"
+                                >
+                                    Off
+                                </button>
+                            </div>
+                        </div>
                     </div>
                     
                     {/* Query Analysis Display */}
@@ -584,6 +623,7 @@ export function SimpleChat({ excludedSources = [] }: SimpleChatProps) {
                                     <span><strong>Recommended Top-K:</strong> {queryAnalysis.analysis.recommendedTopK}</span>
                                     <span><strong>Current Top-K:</strong> {topKMode === 'auto' ? 'Auto' : manualTopK}</span>
                                     <span><strong>Similarity Threshold:</strong> {similarityThreshold}</span>
+                                    <span><strong>System Prompt:</strong> {useSystemPrompt ? 'On' : 'Off'}</span>
                                 </div>
                                 <div className="mt-1 text-white/70">{queryAnalysis.analysis.reasoning}</div>
                                 {topKMode === 'auto' && (
@@ -593,6 +633,9 @@ export function SimpleChat({ excludedSources = [] }: SimpleChatProps) {
                                 )}
                                 <div className="mt-2 text-xs text-blue-300">
                                     🎯 Similarity threshold: {similarityThreshold} ({similarityThreshold >= 0.8 ? 'Strict' : similarityThreshold >= 0.6 ? 'Balanced' : 'Loose'} retrieval)
+                                </div>
+                                <div className="mt-2 text-xs text-blue-300">
+                                    🎭 System prompt: {useSystemPrompt ? 'Enabled (personality/style active)' : 'Disabled (direct factual answers)'}
                                 </div>
                             </div>
                         </div>
