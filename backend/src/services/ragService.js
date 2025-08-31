@@ -535,7 +535,7 @@ class RAGService {
     }
   }
 
-  async query(query, userTopK = null) {
+  async query(query, userTopK = null, userSimilarityThreshold = null) {
     try {
       logger.info(`Executing query: ${query}`);
       
@@ -543,7 +543,14 @@ class RAGService {
       const optimalTopK = await this.getOptimalTopK(query, userTopK);
       logger.info(`Using Top-K = ${optimalTopK} for query: "${query}"`);
       
-      const retriever = this.vectorStore.asRetriever({ k: optimalTopK });
+      // Use user similarity threshold or default
+      const similarityThreshold = userSimilarityThreshold || this.similarityThreshold;
+      logger.info(`Using similarity threshold: ${similarityThreshold}`);
+      
+      const retriever = this.vectorStore.asRetriever({ 
+        k: optimalTopK,
+        scoreThreshold: similarityThreshold
+      });
 
       const prompt = ChatPromptTemplate.fromTemplate(QUERY_PROMPT);
 
@@ -561,11 +568,18 @@ class RAGService {
         input: query,
       });
 
+      // Filter results by similarity score if available
+      let filteredContext = result.context;
+      if (result.context && result.context.length > 0) {
+        filteredContext = await this.filterBySimilarity(result.context, similarityThreshold);
+        logger.info(`Filtered context from ${result.context.length} to ${filteredContext.length} documents`);
+      }
+
       // Improve the formatting of the response
       const formattedResponse = this.improveTextFormatting(result.answer);
 
       // Clean up source names for better display
-      const cleanedSources = result.context.map(doc => ({
+      const cleanedSources = filteredContext.map(doc => ({
         ...doc,
         metadata: {
           ...doc.metadata,
@@ -578,6 +592,9 @@ class RAGService {
         success: true,
         response: formattedResponse,
         sources: cleanedSources,
+        similarityThreshold: similarityThreshold,
+        documentsRetrieved: result.context.length,
+        documentsFiltered: filteredContext.length
       };
     } catch (error) {
       logger.error(`Error during query: ${error.message}`);
