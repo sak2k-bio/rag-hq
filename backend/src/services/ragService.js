@@ -574,11 +574,18 @@ class RAGService {
         input: query,
       });
 
+      // Filter results by similarity score if available
+      let filteredContext = result.context;
+      if (result.context && result.context.length > 0) {
+        filteredContext = await this.filterBySimilarity(result.context, similarityThreshold);
+        logger.info(`Filtered context from ${result.context.length} to ${filteredContext.length} documents`);
+      }
+
       // Improve the formatting of the response
       const formattedResponse = this.improveTextFormatting(result.answer);
 
       // Clean up source names for better display
-      const cleanedSources = result.context.map(doc => ({
+      const cleanedSources = filteredContext.map(doc => ({
         ...doc,
         metadata: {
           ...doc.metadata,
@@ -591,6 +598,9 @@ class RAGService {
         success: true,
         response: formattedResponse,
         sources: cleanedSources,
+        similarityThreshold: similarityThreshold,
+        documentsRetrieved: result.context.length,
+        documentsFiltered: filteredContext.length
       };
     } catch (error) {
       logger.error(`Error during query: ${error.message}`);
@@ -599,7 +609,7 @@ class RAGService {
   }
 
   // Query with conversation history for memory persistence
-  async queryWithHistory(query, conversationHistory, userTopK = null, excludedSources = []) {
+  async queryWithHistory(query, conversationHistory, userTopK = null, excludedSources = [], userSimilarityThreshold = null) {
     try {
       // Validate inputs
       if (typeof query !== 'string') {
@@ -636,12 +646,19 @@ class RAGService {
       const optimalTopK = await this.getOptimalTopK(sanitizedQuery, userTopK);
       logger.info(`Using Top-K = ${optimalTopK} for query with history`);
       
+      // Use user similarity threshold or default
+      const similarityThreshold = userSimilarityThreshold || this.similarityThreshold;
+      logger.info(`Using similarity threshold: ${similarityThreshold} for query with history`);
+      
       // Validate vector store before creating retriever
       if (!this.vectorStore || !this.vectorStore.asRetriever) {
         throw new Error('Vector store not properly initialized');
       }
       
-      const retriever = this.vectorStore.asRetriever({ k: optimalTopK });
+      const retriever = this.vectorStore.asRetriever({ 
+        k: optimalTopK,
+        scoreThreshold: similarityThreshold
+      });
       logger.info('Retriever created successfully');
 
       // Prepare conversation history for the prompt with validation

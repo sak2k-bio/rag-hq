@@ -102,7 +102,9 @@ async function initializeApp() {
     // Query endpoint with conversation history support
     app.post('/api/query', async (req, res, next) => {
       try {
-        const { question, topK, messages, excludedSources } = req.body;
+        const { question, topK, messages, excludedSources, similarityThreshold } = req.body;
+        
+        console.log(`Query endpoint: Received similarityThreshold: ${similarityThreshold}`);
         
         if (!question && !messages) {
           return res.status(400).json({ error: 'Either question or messages array is required' });
@@ -143,7 +145,7 @@ async function initializeApp() {
         } else {
           // Fallback to old behavior for backward compatibility
           console.log(`Query endpoint: Processing single question without history`);
-          const answer = await ragService.query(question, topK ? parseInt(topK) : null);
+          const answer = await ragService.query(question, topK ? parseInt(topK) : null, similarityThreshold ? parseFloat(similarityThreshold) : null);
           res.json({ answer });
         }
       } catch (error) {
@@ -155,7 +157,7 @@ async function initializeApp() {
     // Chat endpoint with conversation history
     app.post('/api/chat', async (req, res, next) => {
       try {
-        const { messages, excludedSources, topK } = req.body;
+        const { messages, excludedSources, topK, similarityThreshold } = req.body;
         
         if (!messages || !Array.isArray(messages) || messages.length === 0) {
           return res.status(400).json({ error: 'Messages array is required' });
@@ -181,7 +183,8 @@ async function initializeApp() {
           latestMessage.content, 
           conversationHistory, 
           topK ? parseInt(topK) : null,
-          excludedSources
+          excludedSources,
+          similarityThreshold ? parseFloat(similarityThreshold) : null
         );
 
         res.json(result);

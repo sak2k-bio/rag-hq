@@ -34,6 +34,47 @@ The application features a stunning glassmorphism design with recent improvement
 - **Clear Visual Hierarchy**: Better section headers, spacing, and component organization
 - **Mobile-First Design**: Responsive layout that works seamlessly across all devices
 
+## 🎯 Similarity Threshold Control
+
+The application now includes advanced similarity threshold control for fine-tuning document retrieval quality:
+
+### What is Similarity Threshold?
+The similarity threshold controls how strictly the system filters retrieved documents based on their relevance to your query. It works with cosine similarity scoring where:
+- **1.0** = Perfect match (100% relevant)
+- **0.9+** = Very high relevance (90%+ relevant)  
+- **0.7-0.9** = High relevance (70-90% relevant)
+- **0.5-0.7** = Medium relevance (50-70% relevant)
+- **0.3-0.5** = Low relevance (30-50% relevant)
+- **<0.3** = Very low relevance (<30% relevant)
+
+### Frontend Controls
+- **Threshold Slider**: Real-time adjustment from 0.1 (loose) to 1.0 (strict)
+- **Current Value Display**: Always visible current threshold value
+- **Show/Hide Toggle**: Clean interface with collapsible threshold controls
+- **Real-time Feedback**: Immediate visual feedback of threshold changes
+
+### Recommended Threshold Values
+| Use Case | Threshold | Description |
+|----------|-----------|-------------|
+| **Production/Strict** | 0.8-0.9 | Only highly relevant documents, high accuracy |
+| **Balanced** | 0.6-0.8 | Good balance of relevance and coverage |
+| **Development/Testing** | 0.4-0.6 | More documents, lower relevance |
+| **Research/Exploration** | 0.3-0.5 | Maximum coverage, may include less relevant content |
+
+### Backend Integration
+- **Environment Defaults**: Configurable via `SIMILARITY_THRESHOLD` and `MIN_SIMILARITY_SCORE`
+- **API Support**: Both `/api/query` and `/api/chat` endpoints support threshold parameters
+- **Dynamic Override**: User thresholds override default environment values
+- **Document Filtering**: Real-time filtering based on similarity scores
+- **Response Metadata**: Includes threshold information and document counts in responses
+
+### Benefits
+- **Quality Control**: Filter out low-relevance documents
+- **Configurable**: Adjust based on use case and requirements  
+- **User Control**: Frontend slider for easy adjustment
+- **Performance**: Better response quality with appropriate thresholds
+- **Integration**: Works seamlessly with existing Top-K and query analysis features
+
 ## 🏗️ High-level Architecture
 
 ```
@@ -69,6 +110,11 @@ GOOGLE_API_KEY=your_google_api_key_here
    QDRANT_URL=http://qdrant:6333
 QDRANT_COLLECTION=documents
 PORT=3000
+
+
+# RAG Retrieval Configuration
+SIMILARITY_THRESHOLD=0.7
+MIN_SIMILARITY_SCORE=0.6
 ```
 
    Create `frontend/.env.local` for chat persistence:
@@ -111,6 +157,8 @@ For production deployment, we recommend using **Vercel for the frontend** and **
    - Enterprise-grade reliability
 
 📖 **Complete deployment guide**: See [DEPLOYMENT.md](./DEPLOYMENT.md) for step-by-step instructions.
+
+📖 **Similarity threshold guide**: See [SIMILARITY_THRESHOLD_GUIDE.md](./docs/SIMILARITY_THRESHOLD_GUIDE.md) for detailed usage instructions.
 
 ### Quick Deploy Commands
 
@@ -336,6 +384,7 @@ The Docker setup has been optimized for size and performance:
 - **Smart Subtitle Processing**: VTT/SRT support with optional timestamp removal
 - **Enhanced Text Formatting**: Improved readability with proper line breaks and structure
 - **Smart Source Filtering**: Choose which sources to include/exclude from AI responses without deleting data
+- **Similarity Threshold Control**: Real-time adjustment of document retrieval quality with frontend slider
 
 ### 💬 Enhanced Chat Experience
 - **Intuitive Chat Flow**: Input bar at top, newest messages at top for natural conversation
@@ -367,30 +416,7 @@ The Docker setup has been optimized for size and performance:
 - **Message Ordering**: Newest messages appear at top for intuitive conversation flow
 - **Scroll Navigation**: Added floating scroll-to-bottom button for easy access to older messages
 - **ESLint Compliance**: Fixed all TypeScript/ESLint errors for clean Docker builds
-- **Type Safety**: Replaced `any` types with proper `Source` interface for better code quality
-- **Chat Persistence**: Full Supabase integration for message history and session management
-
-## 📝 Development
-
-### Local Development
-
-1. Clone the repository
-2. Install dependencies: `npm install` in both frontend and backend
-3. Set up environment variables
-4. Start services: `docker compose up -d`
-5. Access the application at http://localhost:3001
-
-### Building for Production
-
-```bash
-# Build all services
-docker compose build
-
-# Start in production mode
-docker compose -f docker-compose.yml up -d
-```
-
-### Troubleshooting
+- **Type Safety**: Replaced `any`
 
 #### Common Issues
 - **Crawler Issues**: Check the backend logs for detailed error messages, verify robots.txt compliance
@@ -401,28 +427,4 @@ docker compose -f docker-compose.yml up -d
 - **Chat Persistence**: Ensure Supabase credentials are correct, check database table setup
 - **Message Ordering**: Verify chat component is using latest version with proper message ordering
 - **ESLint Build Errors**: Check for TypeScript type issues, ensure all `any` types are properly defined
-
-#### Performance Optimization
-- **Large Datasets**: Consider using Qdrant Cloud for better performance
-- **Slow Responses**: Check chunk size configuration and vector database performance
-- **Memory Usage**: Monitor container resources during large file processing
-
-## 🤝 Contributing
-
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Test thoroughly
-5. Submit a pull request
-
-## 📄 License
-
-This project is licensed under the MIT License - see the LICENSE file for details.
-
-## 🙏 Acknowledgments
-
-- **Google Gemini AI** for powerful language model capabilities
-- **LangChain** for the excellent RAG framework
-- **Qdrant** for high-performance vector storage
-- **Next.js** for the modern React framework
-- **Tailwind CSS** for the utility-first styling approach
+- **Similarity Threshold**: Verify threshold values are between 0.1-1.0, check backend logs for threshold processing

@@ -43,6 +43,10 @@ export function SimpleChat({ excludedSources = [] }: SimpleChatProps) {
     const [queryAnalysis, setQueryAnalysis] = useState<QueryAnalysis | null>(null);
     const [isAnalyzing, setIsAnalyzing] = useState<boolean>(false);
 
+    // Similarity threshold state
+    const [similarityThreshold, setSimilarityThreshold] = useState<number>(0.7);
+    const [showThresholdControl, setShowThresholdControl] = useState<boolean>(false);
+
     // Chat sessions list state
     const [chatSessions, setChatSessions] = useState<Array<{ id: string; messageCount: number; lastMessage: string; timestamp: string }>>([]);
     const [showSessionList, setShowSessionList] = useState(false);
@@ -217,15 +221,21 @@ export function SimpleChat({ excludedSources = [] }: SimpleChatProps) {
             ];
             
             console.log(`Sending conversation context to backend: ${fullConversationContext.length} messages`);
+            console.log(`Sending similarityThreshold: ${similarityThreshold}`);
             
             // Use the same backend URL logic as the analyze query
             const backendUrl = 'http://localhost:3000'; // Hardcoded for now
             
-            const response = await axios.post(`${backendUrl}/api/query`, {
+            const requestBody = {
                 messages: fullConversationContext,
                 excludedSources,
-                topK: topKValue
-            });
+                topK: topKValue,
+                similarityThreshold: similarityThreshold
+            };
+            
+            console.log('Request body:', requestBody);
+            
+            const response = await axios.post(`${backendUrl}/api/query`, requestBody);
 
             const responseData = await response.data;
             console.log('Response received:', responseData);
@@ -528,6 +538,40 @@ export function SimpleChat({ excludedSources = [] }: SimpleChatProps) {
                                 'Analyze Query'
                             )}
                         </button>
+
+                        {/* Similarity Threshold Control */}
+                        <div className="flex items-center gap-2">
+                            <button
+                                type="button"
+                                onClick={() => setShowThresholdControl(!showThresholdControl)}
+                                className="px-3 py-1.5 bg-white/10 hover:bg-white/20 border border-white/20 rounded-md transition-colors text-xs"
+                                title="Configure similarity threshold for document retrieval"
+                            >
+                                {showThresholdControl ? 'Hide' : 'Show'} Threshold
+                            </button>
+                            
+                            {/* Current threshold display */}
+                            <span className="text-xs text-white/60">
+                                Current: {similarityThreshold}
+                            </span>
+                            
+                            {showThresholdControl && (
+                                <div className="flex items-center gap-2">
+                                    <span className="text-xs">Threshold:</span>
+                                    <input
+                                        type="range"
+                                        min="0.1"
+                                        max="1.0"
+                                        step="0.05"
+                                        value={similarityThreshold}
+                                        onChange={(e) => setSimilarityThreshold(parseFloat(e.target.value))}
+                                        className="w-20 bg-white/10 border border-white/20 rounded-lg"
+                                        title={`Similarity threshold: ${similarityThreshold} (0.1 = loose, 1.0 = strict)`}
+                                    />
+                                    <span className="text-xs w-8 text-center">{similarityThreshold}</span>
+                                </div>
+                            )}
+                        </div>
                     </div>
                     
                     {/* Query Analysis Display */}
@@ -539,6 +583,7 @@ export function SimpleChat({ excludedSources = [] }: SimpleChatProps) {
                                     <span><strong>Complexity:</strong> {queryAnalysis.analysis.complexity}</span>
                                     <span><strong>Recommended Top-K:</strong> {queryAnalysis.analysis.recommendedTopK}</span>
                                     <span><strong>Current Top-K:</strong> {topKMode === 'auto' ? 'Auto' : manualTopK}</span>
+                                    <span><strong>Similarity Threshold:</strong> {similarityThreshold}</span>
                                 </div>
                                 <div className="mt-1 text-white/70">{queryAnalysis.analysis.reasoning}</div>
                                 {topKMode === 'auto' && (
@@ -546,6 +591,9 @@ export function SimpleChat({ excludedSources = [] }: SimpleChatProps) {
                                         💡 Auto mode will use Top-K = {queryAnalysis.analysis.recommendedTopK} for this query
                                     </div>
                                 )}
+                                <div className="mt-2 text-xs text-blue-300">
+                                    🎯 Similarity threshold: {similarityThreshold} ({similarityThreshold >= 0.8 ? 'Strict' : similarityThreshold >= 0.6 ? 'Balanced' : 'Loose'} retrieval)
+                                </div>
                             </div>
                         </div>
                     )}
