@@ -13,7 +13,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Personal NotebookLM - Hitesh Choudhary Edition",
+  title: "Personal NotebookLM - High Quality Edition",
   description: "This project implements a Retrieval-Augmented Generation (RAG) service using LangChain, Qdrant, and Google Gemini.",
 };
 

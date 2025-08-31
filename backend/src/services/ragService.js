@@ -31,10 +31,17 @@ class RAGService {
     logger.info(`  QDRANT_COLLECTION: ${process.env.QDRANT_COLLECTION || 'NOT SET (using default: documents)'}`);
     logger.info(`  Collection Name: ${this.collectionName}`);
 
+    // Validate Google API key
+    if (!process.env.GOOGLE_API_KEY) {
+      throw new Error('GOOGLE_API_KEY environment variable is required');
+    }
+    
     this.embeddings = new GoogleGenerativeAIEmbeddings({
       apiKey: process.env.GOOGLE_API_KEY,
       model: 'embedding-001',
     });
+    
+    logger.info('Google Generative AI Embeddings service initialized successfully');
 
     logger.info(`Creating QdrantVectorStore with URL: ${process.env.QDRANT_URL} and collection: ${this.collectionName}`);
     
@@ -62,8 +69,29 @@ class RAGService {
       ],
     });
 
-    // Initialize the collection
-    this.initializeCollection();
+      // Initialize the collection
+  this.initializeCollection();
+  
+  // Test embeddings service
+  this.testEmbeddings();
+}
+
+  // Test embeddings service to ensure it's working correctly
+  async testEmbeddings() {
+    try {
+      const testText = "This is a test query for embeddings validation";
+      logger.info('Testing embeddings service with test text...');
+      
+      const embedding = await this.embeddings.embedQuery(testText);
+      if (embedding && Array.isArray(embedding)) {
+        logger.info(`Embeddings service test successful. Generated ${embedding.length} dimensions.`);
+      } else {
+        logger.warn('Embeddings service test returned unexpected result format');
+      }
+    } catch (error) {
+      logger.error(`Embeddings service test failed: ${error.message}`);
+      // Don't throw here, just log the error
+    }
   }
 
   // Dynamic Top-K selection based on query complexity
@@ -529,6 +557,169 @@ class RAGService {
       };
     } catch (error) {
       logger.error(`Error during query: ${error.message}`);
+      throw error;
+    }
+  }
+
+  // Query with conversation history for memory persistence
+  async queryWithHistory(query, conversationHistory, userTopK = null, excludedSources = []) {
+    try {
+      // Validate inputs
+      if (typeof query !== 'string') {
+        throw new Error(`Query must be a string, got ${typeof query}: ${JSON.stringify(query)}`);
+      }
+      
+      if (!Array.isArray(conversationHistory)) {
+        throw new Error(`ConversationHistory must be an array, got ${typeof conversationHistory}`);
+      }
+      
+      // Validate conversation history structure
+      for (let i = 0; i < conversationHistory.length; i++) {
+        const msg = conversationHistory[i];
+        if (!msg || typeof msg !== 'object') {
+          throw new Error(`Invalid message at index ${i}: not an object`);
+        }
+        if (!msg.role || typeof msg.role !== 'string') {
+          throw new Error(`Invalid message at index ${i}: missing or invalid role`);
+        }
+        if (!msg.content || typeof msg.content !== 'string') {
+          throw new Error(`Invalid message at index ${i}: missing or invalid content`);
+        }
+      }
+      
+      // Sanitize query to ensure it's a clean string
+      const sanitizedQuery = query.trim();
+      if (!sanitizedQuery) {
+        throw new Error('Query cannot be empty or only whitespace');
+      }
+      
+      logger.info(`Query with history: "${query}" - ${conversationHistory.length} previous messages`);
+      
+      // Get optimal Top-K based on query complexity or user override
+      const optimalTopK = await this.getOptimalTopK(sanitizedQuery, userTopK);
+      logger.info(`Using Top-K = ${optimalTopK} for query with history`);
+      
+      // Validate vector store before creating retriever
+      if (!this.vectorStore || !this.vectorStore.asRetriever) {
+        throw new Error('Vector store not properly initialized');
+      }
+      
+      const retriever = this.vectorStore.asRetriever({ k: optimalTopK });
+      logger.info('Retriever created successfully');
+
+      // Prepare conversation history for the prompt with validation
+      logger.info(`Raw conversation history: ${JSON.stringify(conversationHistory)}`);
+      
+      const validMessages = conversationHistory.filter(msg => {
+        const isValid = msg && msg.role && msg.content && typeof msg.content === 'string';
+        if (!isValid) {
+          logger.warn(`Invalid message in conversation history: ${JSON.stringify(msg)}`);
+        }
+        return isValid;
+      });
+      
+      const formattedHistory = validMessages
+        .map(msg => 
+          `${msg.role === 'user' ? 'User' : 'Assistant'}: ${msg.content}`
+        ).join('\n');
+
+      // Create a more sophisticated prompt that includes conversation history
+      const historyPrompt = ChatPromptTemplate.fromTemplate(`
+${SYSTEM_PROMPT}
+
+**Conversation History:**
+${formattedHistory}
+
+**Retrieved Documents:**
+{context}
+
+**Current Question:** ${sanitizedQuery}
+
+**Instructions:** 
+- Use the conversation history to provide context-aware responses
+- Reference previous questions and answers when relevant
+- Maintain continuity in the conversation
+- Answer the current question based on both the conversation history and retrieved documents
+- Use the retrieved documents as your primary source of information
+
+**Response:**`);
+      
+      logger.info(`Created prompt template with conversation history embedded`);
+
+      console.log(`Formatted conversation history: ${formattedHistory}`);
+      console.log(`Query to embed: "${sanitizedQuery}"`);
+
+      let documentChain;
+      let retrievalChain;
+      
+      try {
+        documentChain = await createStuffDocumentsChain({
+          llm: this.chatModel,
+          prompt: historyPrompt,
+        });
+        logger.info('Document chain created successfully');
+        
+        retrievalChain = await createRetrievalChain({
+          combineDocsChain: documentChain,
+          retriever,
+        });
+        logger.info('Retrieval chain created successfully');
+      } catch (error) {
+        logger.error(`Error creating chains: ${error.message}`);
+        throw new Error(`Failed to create processing chains: ${error.message}`);
+      }
+
+      // Log the input being passed to the retrieval chain
+      logger.info(`Invoking retrieval chain with question: "${sanitizedQuery}"`);
+      logger.info(`Formatted conversation history length: ${formattedHistory.length}`);
+      logger.info(`Formatted conversation history content: "${formattedHistory}"`);
+      
+      // Validate the sanitized query
+      if (!sanitizedQuery || !sanitizedQuery.trim()) {
+        throw new Error('Query cannot be empty or only whitespace');
+      }
+      
+      logger.info(`Query to process: "${sanitizedQuery}"`);
+      logger.info(`Conversation history length: ${formattedHistory.length}`);
+      
+      let result;
+      try {
+        // Test the retriever separately first
+        logger.info('Testing retriever with query...');
+        const testDocs = await retriever.getRelevantDocuments(sanitizedQuery);
+        logger.info(`Retriever test successful, found ${testDocs.length} documents`);
+        
+        // The retrieval chain expects the input in the correct format
+        // We need to pass the question as the main input and include conversation history in the prompt
+        result = await retrievalChain.invoke({
+          input: sanitizedQuery,
+        });
+        logger.info('Retrieval chain executed successfully');
+      } catch (error) {
+        logger.error(`Error during retrieval chain execution: ${error.message}`);
+        logger.error(`Error stack: ${error.stack}`);
+        throw new Error(`Failed to execute retrieval chain: ${error.message}`);
+      }
+
+      // Improve the formatting of the response
+      const formattedResponse = this.improveTextFormatting(result.answer);
+
+      // Clean up source names for better display
+      const cleanedSources = result.context.map(doc => ({
+        ...doc,
+        metadata: {
+          ...doc.metadata,
+          source: this.cleanSourceName(doc.metadata.source)
+        }
+      }));
+
+      return {
+        success: true,
+        answer: formattedResponse,
+        sources: cleanedSources,
+      };
+    } catch (error) {
+      logger.error(`Error during query with history: ${error.message}`);
       throw error;
     }
   }

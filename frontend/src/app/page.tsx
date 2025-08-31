@@ -355,8 +355,8 @@ const Home: NextPage = () => {
         <div className="space-y-6">
           {/* Header */}
           <div className="text-center mb-8">
-            <h1 className="text-2xl font-bold text-white mb-2">Chai RAG</h1>
-            <p className="text-white/60 text-sm">Hitesh Choudhary Edition</p>
+            <h1 className="text-2xl font-bold text-white mb-2">RAG - High Quality Edition</h1>
+            <p className="text-white/60 text-sm">High Quality Edition</p>
           </div>
 
           {/* Add Text Section */}
@@ -794,7 +794,7 @@ const Home: NextPage = () => {
         <header className="p-6 border-b border-white/10 bg-white/5 backdrop-blur-sm">
           <div className="flex items-center justify-between">
             <div>
-              <h2 className="text-xl font-semibold text-white">Chat with Hitesh Sir</h2>
+              <h2 className="text-xl font-semibold text-white">Chat with a unique persona</h2>
               <p className="text-sm text-white/60">Ask questions about your knowledge base</p>
             </div>
             <div className="bg-green-500/20 text-green-400 border border-green-500/30 rounded-full px-3 py-1 text-sm">

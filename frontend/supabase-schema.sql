@@ -30,3 +30,6 @@ CREATE POLICY "Allow public read access" ON chat_messages FOR SELECT USING (true
 CREATE POLICY "Allow public insert access" ON chat_messages FOR INSERT WITH CHECK (true);
 CREATE POLICY "Allow public read access" ON chat_sessions FOR SELECT USING (true);
 CREATE POLICY "Allow public insert access" ON chat_sessions FOR INSERT WITH CHECK (true);
+
+-- Run this in your Supabase dashboard
+ALTER TABLE chat_messages ADD COLUMN IF NOT EXISTS sources JSONB DEFAULT '[]';

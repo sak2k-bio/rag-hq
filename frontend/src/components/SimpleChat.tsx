@@ -47,6 +47,9 @@ export function SimpleChat({ excludedSources = [] }: SimpleChatProps) {
     const [chatSessions, setChatSessions] = useState<Array<{ id: string; messageCount: number; lastMessage: string; timestamp: string }>>([]);
     const [showSessionList, setShowSessionList] = useState(false);
 
+    // Conversation context for memory persistence
+    const [conversationContext, setConversationContext] = useState<Array<{ role: 'user' | 'assistant'; content: string }>>([]);
+
     // Initialize session and load previous messages
     useEffect(() => {
         initializeChat();
@@ -86,6 +89,14 @@ export function SimpleChat({ excludedSources = [] }: SimpleChatProps) {
                 }));
                 
                 setMessages(mappedMessages);
+                
+                // Set up conversation context for memory persistence
+                const context = mappedMessages.map(msg => ({
+                    role: msg.role,
+                    content: msg.content
+                }));
+                setConversationContext(context);
+                console.log(`Conversation context loaded: ${context.length} messages`);
             } else {
                 console.log('No previous messages found for session:', sessionId);
                 setMessages([]);
@@ -159,7 +170,14 @@ export function SimpleChat({ excludedSources = [] }: SimpleChatProps) {
                     timestamp: msg.timestamp
                 }));
                 setMessages(mappedMessages);
-                console.log(`Switched to session ${newSessionId} with ${mappedMessages.length} messages`);
+                
+                // Set up conversation context for the new session
+                const context = mappedMessages.map(msg => ({
+                    role: msg.role,
+                    content: msg.content
+                }));
+                setConversationContext(context);
+                console.log(`Switched to session ${newSessionId} with ${mappedMessages.length} messages. Conversation context loaded.`);
             } else {
                 setMessages([]);
                 console.log(`Switched to empty session ${newSessionId}`);
@@ -192,8 +210,19 @@ export function SimpleChat({ excludedSources = [] }: SimpleChatProps) {
             // Get Top-K value based on mode
             const topKValue = topKMode === 'auto' ? null : manualTopK;
 
-            const response = await axios.post('/api/chat', {
-                messages: [...messages, userMessage],
+            // Create the full conversation context including the new user message
+            const fullConversationContext = [
+                ...conversationContext,
+                { role: 'user' as const, content: input }
+            ];
+            
+            console.log(`Sending conversation context to backend: ${fullConversationContext.length} messages`);
+            
+            // Use the same backend URL logic as the analyze query
+            const backendUrl = 'http://localhost:3000'; // Hardcoded for now
+            
+            const response = await axios.post(`${backendUrl}/api/query`, {
+                messages: fullConversationContext,
                 excludedSources,
                 topK: topKValue
             });
@@ -213,6 +242,14 @@ export function SimpleChat({ excludedSources = [] }: SimpleChatProps) {
 
             setMessages(prev => [assistantMessage, ...prev]);
             
+            // Update conversation context for memory persistence
+            const updatedContext = [
+                ...fullConversationContext,
+                { role: 'assistant' as const, content: responseData.answer }
+            ];
+            setConversationContext(updatedContext);
+            console.log(`Updated conversation context: ${updatedContext.length} messages`);
+            
             // Refresh the session list to show updated counts
             await loadChatSessions();
         } catch (error) {
@@ -231,7 +268,7 @@ export function SimpleChat({ excludedSources = [] }: SimpleChatProps) {
         
         try {
             // Use the same backend URL logic as the chat API
-            const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:3000';
+            const backendUrl = 'http://localhost:3000'; // Hardcoded for now
             const response = await axios.post(`${backendUrl}/api/query/analyze`, {
                 question: query
             });
@@ -289,6 +326,8 @@ export function SimpleChat({ excludedSources = [] }: SimpleChatProps) {
             } else {
                 // Clear local state
                 setMessages([]);
+                setConversationContext([]); // Clear conversation context
+                
                 // Generate new session ID
                 const newSessionId = `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
                 setSessionId(newSessionId);
@@ -322,7 +361,7 @@ export function SimpleChat({ excludedSources = [] }: SimpleChatProps) {
                         Top-K: {topKMode === 'auto' ? 'Auto' : `Manual (${manualTopK})`}
                     </div>
                     <div className="text-sm text-white/60">
-                        Session: {sessionId.substring(0, 8)}...
+                        Session: {sessionId.substring(0, 8)}... | Context: {conversationContext.length} messages
                     </div>
                 </div>
                 <div className="flex items-center gap-2">

@@ -1,15 +1,8 @@
-# Chai RAG - Hitesh Choudhary Edition
+# RAG - High Quality Edition
 
-A beautiful, modern RAG (Retrieval-Augmented Generation) application featuring Hitesh Choudhary's authentic teaching style and personality. This AI-powered knowledge assistant helps you create your own personal knowledge base by ingesting documents, websites, and text, then querying it with natural language in Hitesh's characteristic Hinglish communication style - complete with chai analogies and no-spoon-feeding approach!
+A beautiful, modern RAG (Retrieval-Augmented Generation) application featuring various authentic teaching style and personality. This AI-powered knowledge assistant helps you create your own personal knowledge base by ingesting documents, websites, and text, then querying it with natural language!
 
 ## ✨ Features
-
-### 🎯 Hitesh Sir's Authentic Experience
-- **Authentic Hinglish Communication**: Natural mixing of Hindi-English with phrases like "Haan ji", "dekho", "samjha?", "chal"
-- **Chai Analogies**: Programming concepts explained through chai references - "Python is like chai - simple, flexible, everyone loves it"
-- **No-Spoon-Feeding Teaching**: Guides you to solutions with "Try karo pehle", "logic samjho", encourages independent thinking
-- **Cultural References**: Everyday Indian examples - cricket teams, mom's recipes, tapri chai orders
-- **Motivational Approach**: "Galti karna normal hai, seekhna important hai" - encouraging but challenging
 
 ### 💻 Technical Features
 - **Enhanced Modern UI**: Glassmorphism design with improved typography, spacing, and visual hierarchy
@@ -218,7 +211,7 @@ For enhanced chat experience with message history and session management:
 - `POST /api/text` - Add raw text content to the knowledge base
 - `POST /api/crawl` - Recursively crawl websites with robots.txt support
 - `POST /api/documents` - Upload and process multiple files (up to 10 files)
-- `POST /api/query` - Query the knowledge base in Hitesh's Hinglish style
+- `POST /api/query` - Query the knowledge base in a unique persona style
 - `GET /api/documents` - List all documents with metadata and chunk counts
 - `GET /api/documents` - List all documents with metadata and chunk counts (read-only)
 - `GET /api/progress/:opId` - SSE endpoint for real-time progress updates
@@ -327,13 +320,6 @@ The Docker setup has been optimized for size and performance:
 
 ## 🔧 Latest Updates & Improvements
 
-### ✨ Hitesh Choudhary Persona Integration
-- **Authentic Personality**: Real Hitesh teaching style with natural Hinglish communication
-- **Chai Analogies**: Programming concepts explained through chai references and cultural examples
-- **No-Spoon-Feeding Philosophy**: Guides users with "Try karo pehle", "logic samjho" approach
-- **Motivational Teaching**: Encouraging but challenging approach with Indian cultural context
-- **Short & Concise Responses**: Maximum 150 words with proper formatting and line breaks
-
 ### 🎨 Enhanced User Interface
 - **Wider Sidebar**: Increased from 320px to 384px for better component spacing
 - **Improved Typography**: Better font sizes, line heights (1.8), and letter spacing
@@ -365,6 +351,16 @@ The Docker setup has been optimized for size and performance:
 - **URL Matching Issues**: Enhanced document deletion with flexible URL handling
 - **Sources Panel Restoration**: Re-added document management interface
 - **Progress Tracking**: Improved real-time updates with better error handling
+
+###  Latest RAG Service Fixes (August 2025)
+- **500 Internal Server Errors**: Resolved critical bug causing server errors during queries
+- **Variable Scope Issues**: Fixed 'formattedHistory' initialization errors in conversation handling
+- **Prompt Template Variables**: Corrected missing input variable errors in LangChain retrieval chains
+- **Embeddings Service Errors**: Fixed 'text.replace is not a function' errors in Google AI service
+- **Retrieval Chain Input Format**: Corrected input format for LangChain retrieval chains
+- **Conversation History Processing**: Improved conversation context handling for better AI responses
+- **Error Handling**: Enhanced error messages and debugging information for developers
+- **Service Stability**: Improved overall reliability of the RAG query system
 
 ### 🎯 Latest Chat Interface Improvements
 - **Input Bar Positioning**: Moved chat input to top for better accessibility and UX

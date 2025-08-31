@@ -99,22 +99,94 @@ async function initializeApp() {
       }
     });
 
-    // Query endpoint
+    // Query endpoint with conversation history support
     app.post('/api/query', async (req, res, next) => {
       try {
-        const { question, topK } = req.body;
-        if (!question) {
-          return res.status(400).json({ error: 'Question is required' });
-        }
+        const { question, topK, messages, excludedSources } = req.body;
         
-        // Validate topK if provided
-        if (topK && (isNaN(topK) || topK < 1 || topK > 20)) {
-          return res.status(400).json({ error: 'topK must be a number between 1 and 20' });
+        if (!question && !messages) {
+          return res.status(400).json({ error: 'Either question or messages array is required' });
         }
-        
-        const answer = await ragService.query(question, topK ? parseInt(topK) : null);
-        res.json({ answer });
+
+        // If messages array is provided, use conversation history
+        if (messages && Array.isArray(messages) && messages.length > 0) {
+          console.log(`Query endpoint: Processing with conversation history (${messages.length} messages)`);
+          
+          // Get the latest user message
+          const latestMessage = messages[messages.length - 1];
+          if (latestMessage.role !== 'user') {
+            return res.status(400).json({ error: 'Last message must be from user' });
+          }
+
+          // Create conversation context from previous messages
+          const conversationHistory = messages.slice(0, -1).map(msg => ({
+            role: msg.role,
+            content: msg.content
+          }));
+
+          console.log(`Using conversation history with ${conversationHistory.length} previous messages`);
+          console.log(`Latest user message: ${latestMessage.content}`);
+
+          // Call RAG service with conversation history
+          const result = await ragService.queryWithHistory(
+            latestMessage.content, 
+            conversationHistory, 
+            topK ? parseInt(topK) : null,
+            excludedSources
+          );
+
+          // Ensure response format matches what frontend expects
+          res.json({
+            answer: result.answer || result.response,
+            sources: result.sources || []
+          });
+        } else {
+          // Fallback to old behavior for backward compatibility
+          console.log(`Query endpoint: Processing single question without history`);
+          const answer = await ragService.query(question, topK ? parseInt(topK) : null);
+          res.json({ answer });
+        }
       } catch (error) {
+        console.error('Query endpoint error:', error);
+        next(error);
+      }
+    });
+
+    // Chat endpoint with conversation history
+    app.post('/api/chat', async (req, res, next) => {
+      try {
+        const { messages, excludedSources, topK } = req.body;
+        
+        if (!messages || !Array.isArray(messages) || messages.length === 0) {
+          return res.status(400).json({ error: 'Messages array is required' });
+        }
+
+        // Get the latest user message
+        const latestMessage = messages[messages.length - 1];
+        if (latestMessage.role !== 'user') {
+          return res.status(400).json({ error: 'Last message must be from user' });
+        }
+
+        // Create conversation context from previous messages
+        const conversationHistory = messages.slice(0, -1).map(msg => ({
+          role: msg.role,
+          content: msg.content
+        }));
+
+        console.log(`Chat endpoint: Processing message with ${conversationHistory.length} previous messages`);
+        console.log(`Latest user message: ${latestMessage.content}`);
+
+        // Call RAG service with conversation history
+        const result = await ragService.queryWithHistory(
+          latestMessage.content, 
+          conversationHistory, 
+          topK ? parseInt(topK) : null,
+          excludedSources
+        );
+
+        res.json(result);
+      } catch (error) {
+        console.error('Chat endpoint error:', error);
         next(error);
       }
     });
