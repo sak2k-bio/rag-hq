@@ -25,11 +25,17 @@ class RAGService {
     this.isUsingCloud = false;
     this.cloudConfig = null;
 
+    // Add similarity threshold configuration
+    this.similarityThreshold = parseFloat(process.env.SIMILARITY_THRESHOLD) || 0.7;
+    this.minSimilarityScore = parseFloat(process.env.MIN_SIMILARITY_SCORE) || 0.6;
+
     // Debug logging for environment variables
     logger.info(`RAG Service initialized with:`);
     logger.info(`  QDRANT_URL: ${process.env.QDRANT_URL || 'NOT SET'}`);
     logger.info(`  QDRANT_COLLECTION: ${process.env.QDRANT_COLLECTION || 'NOT SET (using default: documents)'}`);
     logger.info(`  Collection Name: ${this.collectionName}`);
+    logger.info(`  Similarity Threshold: ${this.similarityThreshold}`);
+    logger.info(`  Min Similarity Score: ${this.minSimilarityScore}`);
 
     // Validate Google API key
     if (!process.env.GOOGLE_API_KEY) {
@@ -535,7 +541,7 @@ class RAGService {
     }
   }
 
-  async query(query, userTopK = null, userSimilarityThreshold = null) {
+  async query(query, userTopK = null) {
     try {
       logger.info(`Executing query: ${query}`);
       
@@ -543,14 +549,7 @@ class RAGService {
       const optimalTopK = await this.getOptimalTopK(query, userTopK);
       logger.info(`Using Top-K = ${optimalTopK} for query: "${query}"`);
       
-      // Use user similarity threshold or default
-      const similarityThreshold = userSimilarityThreshold || this.similarityThreshold;
-      logger.info(`Using similarity threshold: ${similarityThreshold}`);
-      
-      const retriever = this.vectorStore.asRetriever({ 
-        k: optimalTopK,
-        scoreThreshold: similarityThreshold
-      });
+      const retriever = this.vectorStore.asRetriever({ k: optimalTopK });
 
       const prompt = ChatPromptTemplate.fromTemplate(QUERY_PROMPT);
 
@@ -568,18 +567,11 @@ class RAGService {
         input: query,
       });
 
-      // Filter results by similarity score if available
-      let filteredContext = result.context;
-      if (result.context && result.context.length > 0) {
-        filteredContext = await this.filterBySimilarity(result.context, similarityThreshold);
-        logger.info(`Filtered context from ${result.context.length} to ${filteredContext.length} documents`);
-      }
-
       // Improve the formatting of the response
       const formattedResponse = this.improveTextFormatting(result.answer);
 
       // Clean up source names for better display
-      const cleanedSources = filteredContext.map(doc => ({
+      const cleanedSources = result.context.map(doc => ({
         ...doc,
         metadata: {
           ...doc.metadata,
@@ -592,9 +584,6 @@ class RAGService {
         success: true,
         response: formattedResponse,
         sources: cleanedSources,
-        similarityThreshold: similarityThreshold,
-        documentsRetrieved: result.context.length,
-        documentsFiltered: filteredContext.length
       };
     } catch (error) {
       logger.error(`Error during query: ${error.message}`);
