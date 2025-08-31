@@ -179,6 +179,30 @@ class RAGService {
     }
   }
 
+  // Filter documents by similarity score
+  async filterBySimilarity(documents, threshold = null) {
+    const scoreThreshold = threshold || this.similarityThreshold;
+    
+    logger.info(`Filtering ${documents.length} documents by similarity threshold: ${scoreThreshold}`);
+    
+    const filteredDocs = documents.filter(doc => {
+      // Check if document has a similarity score
+      if (doc.score !== undefined) {
+        const keep = doc.score >= scoreThreshold;
+        if (!keep) {
+          logger.debug(`Filtering out document with score ${doc.score} (below threshold ${scoreThreshold})`);
+        }
+        return keep;
+      }
+      // Keep documents without scores (they might be from different retrieval methods)
+      logger.debug('Document has no similarity score, keeping it');
+      return true;
+    });
+    
+    logger.info(`Filtered to ${filteredDocs.length} documents above threshold ${scoreThreshold}`);
+    return filteredDocs;
+  }
+
   // Initialize the Qdrant collection if it doesn't exist
   async initializeCollection() {
     try {
