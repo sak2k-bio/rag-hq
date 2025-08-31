@@ -541,7 +541,7 @@ class RAGService {
     }
   }
 
-  async query(query, userTopK = null) {
+  async query(query, userTopK = null, userSimilarityThreshold = null) {
     try {
       logger.info(`Executing query: ${query}`);
       
@@ -549,7 +549,14 @@ class RAGService {
       const optimalTopK = await this.getOptimalTopK(query, userTopK);
       logger.info(`Using Top-K = ${optimalTopK} for query: "${query}"`);
       
-      const retriever = this.vectorStore.asRetriever({ k: optimalTopK });
+      // Use user similarity threshold or default
+      const similarityThreshold = userSimilarityThreshold || this.similarityThreshold;
+      logger.info(`Using similarity threshold: ${similarityThreshold}`);
+      
+      const retriever = this.vectorStore.asRetriever({ 
+        k: optimalTopK,
+        scoreThreshold: similarityThreshold
+      });
 
       const prompt = ChatPromptTemplate.fromTemplate(QUERY_PROMPT);
 
